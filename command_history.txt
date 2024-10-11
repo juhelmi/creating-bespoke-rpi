@@ -1,0 +1,67 @@
+
+mkdir creating-bespoke-rpi
+git clone git://git.yoctoproject.org/poky -b kirkstone
+cd poky
+source oe-init-build-env 
+# changed to build directory
+
+# Documents in https://meta-raspberrypi.readthedocs.io/en/latest/
+
+cd ..
+# clone to poky directory
+git clone git@github.com:agherzan/meta-raspberrypi.git -b kirkstone
+
+git clone git://git.openembedded.org/meta-openembedded -b kirkstone
+
+
+cd build
+# Layers: meta-oe, meta-multimedia, meta-networking, meta-python
+bitbake-layers add-layer ../meta-openembedded/meta-oe/
+bitbake-layers add-layer ../meta-openembedded/meta-python
+bitbake-layers add-layer ../meta-openembedded/meta-networking
+bitbake-layers add-layer ../meta-openembedded/meta-multimedia
+bitbake-layers add-layer ../meta-raspberrypi
+
+# in build directory
+bitbake core-image-base
+
+# write to microsd card with
+sudo dd bs=1M if=./core-image-base-raspberrypi4.rpi-sdimg of=/dev/sdc
+bzip2 -d xx.wic.bz2
+sudo dd bs=1M if=./xx*.wic of=/dev/sdc
+
+sudo bmaptool copy core-image-base-raspberrypi4.wic.bz2 /dev/sdc
+sudo bmaptool copy ./tmp/deploy/images/raspberrypi4-64/core-image-base-raspberrypi4-64.wic.bz2 /dev/sd
+
+
+#########
+https://medium.com/nerd-for-tech/build-your-own-linux-image-for-the-raspberry-pi-f61adb799652
+
+https://www.reddit.com/r/embeddedlinux/comments/mjlh4p/raspberry_pi_4_not_booting_after_burning/
+
+sudo bmaptool copy ./tmp/deploy/images/raspberrypi4-64/core-image-base-raspberrypi4-64.wic.bz2 /dev/sdb
+
+Maybe a dumb question, but Is your RPI the 64 bit version? Double check and if not, be sure your MACHINE = "raspberrypi4". If it is the 64 bit version, leave as is.
+
+I'm not familiar with bmaptool so it could be that what you're doing is correct, but when I burn my wic.bz2, I generally use bzcat. Here's an example of how I use it: bzcat tmp/deploy/images/raspberrypi4/core-image-full-cmdline-raspberrypi4.wic.bz2 | sudo dd of=/dev/mmcblk0 status=progress
+
+Try uncommenting the last line of your local.conf to make it: RPI_USE_U_BOOT = "1"
+
+Might not change anything, but try uncommenting the IMAGE_FSTYPES line in your local.conf and add wic.bz2.. make it look like this: IMAGE_FSTYPES="tar.xz ext3 rpi-sdimg wic wic.bmap wic.bz2"
+
+CONF_VERSION = "3"
+
+MACHINE ??= "raspberrypi4"
+
+# IMAGE_FSTYPES="tar.xz ext3 rpi-sdimg wic wic.bmap wic.bz2"
+#IMAGE_FSTYPES_append=" rpi-sdimg"
+
+#RPI_USE_U_BOOT = "1" 
+# IMAGE_ROOTFS_EXTRA_SPACE = "327680"  
+#DISTRO_FEATURES_append = " systemd" 
+
+#ENABLE_UART = "1"
+
+# Enable I2C
+#ENABLE_I2C = "1"
+#KERNEL_MODULE_AUTOLOAD_rpi += " i2c-dev i2c-bcm2708"

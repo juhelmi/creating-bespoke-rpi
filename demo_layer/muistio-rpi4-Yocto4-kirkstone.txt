@@ -1,0 +1,59 @@
+# https://hub.mender.io/t/raspberry-pi-4-model-b-yocto-4-0-kirkstone-and-earlier/889
+
+# Login to my yocto docker server " ssh -o StrictHostKeyChecking=no -p 2222 localhost
+"
+
+# Init git in ssh server
+  git config --global user.email "juha.helminen@iki.fi"
+  git config --global user.name "Juha Helminen"
+
+
+export BRANCH="kirkstone" 
+
+mkdir mender-raspberrypi && cd mender-raspberrypi
+
+repo init -u https://github.com/mendersoftware/meta-mender-community.git \
+           -m meta-mender-raspberrypi/scripts/manifest-raspberrypi.xml \
+           -b ${BRANCH}
+repo sync
+
+# Reset build/local.conf to sample content.
+source setup-environment raspberrypi
+# Later better to call
+# .../mender-raspberrypi$ source sources/poky/oe-init-build-env build/
+
+# MACHINE=raspberrypi4  bitbake -c cleansstate core-image-base
+MACHINE=raspberrypi4 bitbake core-image-base
+MACHINE=raspberrypi4 bitbake core-image-full-cmdline
+
+### Own changes
+build/local.config
+
+MACHINE ??= "qemux86-64"
+MACHINE ?= "raspberrypi4"
+
+# EXTRA_IMAGE_FEATURES:append = " ssh-server-openssh"
+
+# Enable I2C
+ENABLE_I2C = "1"
+KERNEL_MODULE_AUTOLOAD_rpi += " i2c-dev i2c-bcm2708"
+
+
+
+sudo dd bs=1M if=core-image-base-raspberrypi4.sdimg of=/dev/sdc
+sudo dd bs=1M if=tmp/deploy/images/raspeberrypi4/core-image-base-raspberrypi4.sdimg of=/dev/sdc
+sudo bmaptool copy ./tmp/deploy/images/raspberrypi4-64/core-image-base-raspberrypi4-64.wic.bz2 /dev/sdc
+
+i2cdetect -l
+
+
+# Oman layerin lisäyksen ohjeet saa https://www.udemy.com/course/draft/2348246/learn/lecture/14589218#overview
+# 32 Add bblayers
+# Kohteena core-image-full-cmdline sen päälle jotain lisää.
+
+# at mender-raspberrypi/sources$
+bitbake-layers create-layer meta-hw-control
+# add "${TOPDIR}/../sources/meta-hw-control \" to bblayers.conf
+
+#check if found
+bitbake-layers show-recipes "i2c*image"
